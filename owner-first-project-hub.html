@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Owner-first project hub (prototype v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f4; --surface: #ffffff; --ink: #14202b; --muted: #55636f; --line: #c6cfd8;
+    --soft: #e3e8ed; --action: #1f4fd8; --action-ink: #ffffff; --warn: #8a3b00; --warn-bg: #fff1e3;
+    --focus: #1f4fd8; color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161c; --surface: #1a232c; --ink: #eaf0f5; --muted: #a2b0bc; --line: #3a4854;
+      --soft: #26323d; --action: #7fa2ff; --action-ink: #0b1220; --warn: #ffbd85; --warn-bg: #3a2614;
+      --focus: #7fa2ff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161c; --surface: #1a232c; --ink: #eaf0f5; --muted: #a2b0bc; --line: #3a4854;
+    --soft: #26323d; --action: #7fa2ff; --action-ink: #0b1220; --warn: #ffbd85; --warn-bg: #3a2614;
+    --focus: #7fa2ff; color-scheme: dark;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 17px; line-height: 1.5;
+  }
+  h1, h2, h3 { font-family: "Bricolage Grotesque", "Public Sans", system-ui, sans-serif; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+  h1 { font-size: 34px; font-weight: 700; }
+  h2 { font-size: 22px; font-weight: 650; }
+  h3 { font-size: 18px; font-weight: 600; }
+  p { margin: 0 0 10px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 16px 16px 40px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 15px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* header and navigation */
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; padding: 8px 0 14px; }
+  .top .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 600; font-size: 15px; background: var(--surface); }
+  .pill.ok { border-color: var(--line); font-weight: 500; }
+  .viewing { display: flex; align-items: center; gap: 8px; }
+  .viewing select { min-height: 44px; border: 1.5px solid var(--ink); border-radius: 10px; background: var(--surface); padding: 4px 10px; }
+  nav.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+  nav.tabs button { min-height: 48px; padding: 8px 18px; border: 0; background: transparent; font-weight: 600; border-bottom: 4px solid transparent; margin-bottom: -2px; color: var(--muted); }
+  nav.tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--action); }
+
+  /* buttons and fields */
+  .btn { min-height: 44px; padding: 8px 18px; border-radius: 10px; border: 1.5px solid var(--ink); background: var(--surface); font-weight: 600; }
+  .btn.primary { background: var(--action); color: var(--action-ink); border-color: var(--action); }
+  .btn.small { min-height: 38px; padding: 4px 12px; font-size: 15px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  label.field { display: block; font-weight: 600; margin-bottom: 14px; }
+  label.field .hint { display: block; font-weight: 400; color: var(--muted); font-size: 15px; }
+  input[type=text], input[type=date], input[type=url], select.f, textarea {
+    display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin-top: 6px; padding: 8px 12px;
+    border: 1.5px solid var(--ink); border-radius: 10px; background: var(--surface);
+  }
+  textarea { min-height: 84px; resize: vertical; }
+  .err { color: var(--warn); font-weight: 600; font-size: 15px; margin-top: 4px; }
+  .invalid { border-color: var(--warn) !important; }
+
+  /* layout blocks */
+  .grid2 { display: grid; gap: 20px; grid-template-columns: 1fr; }
+  @media (min-width: 860px) { .grid2 { grid-template-columns: 1.35fr 1fr; } }
+  .panel { background: var(--surface); border: 1.5px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .panel + .panel { margin-top: 20px; }
+  .panel > h2 { margin-bottom: 10px; }
+  .rows > * + * { border-top: 1px solid var(--line); }
+  .row { padding: 10px 0; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+  .row .grow { flex: 1 1 260px; min-width: 0; }
+
+  /* ownership chips: the one memorable element */
+  .chip { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 14px; flex: none; }
+  .who { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .who.big .chip { width: 36px; height: 36px; font-size: 17px; }
+
+  /* progress bar: status told by pattern as well as shade */
+  .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--ink); background: var(--surface); }
+  .bar span { display: block; height: 100%; }
+  .seg-done { background: var(--ink); }
+  .seg-doing { background: var(--muted); }
+  .seg-blocked { background: repeating-linear-gradient(45deg, var(--warn) 0 4px, var(--warn-bg) 4px 8px); }
+  .seg-todo { background: var(--surface); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 15px; color: var(--muted); }
+
+  /* attention items */
+  .alert { border-left: 6px solid var(--warn); background: var(--warn-bg); border-radius: 6px 12px 12px 6px; padding: 12px 14px; }
+  .alert + .alert { margin-top: 10px; }
+  .alert.you { border-left-color: var(--action); background: var(--soft); }
+  .alert .actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .calm { padding: 8px 0; color: var(--muted); }
+
+  /* board */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .filters .group { display: flex; gap: 6px; }
+  .filters .group button { min-height: 40px; padding: 4px 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--surface); font-weight: 600; }
+  .filters .group button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .cols { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 980px) { .cols { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .col > h3 { display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); }
+  .col.blocked > h3 { border-bottom-style: dashed; }
+  .card { background: var(--surface); border: 1.5px solid var(--line); border-left-width: 8px; border-radius: 6px 12px 12px 6px; padding: 10px 12px; margin-bottom: 10px; }
+  .card .title { font-weight: 600; width: 100%; text-align: left; background: none; border: 0; padding: 0; min-height: 32px; overflow-wrap: anywhere; }
+  .card .title:hover { text-decoration: underline; }
+  .card .line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; font-size: 15px; color: var(--muted); }
+  .badge { display: inline-block; border: 1.5px solid var(--warn); color: var(--warn); border-radius: 6px; padding: 0 8px; font-size: 14px; font-weight: 600; }
+  .card .qa { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .empty { color: var(--muted); border: 1.5px dashed var(--line); border-radius: 12px; padding: 12px; font-size: 15px; }
+
+  /* dialog and toast */
+  #dlg { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-start; justify-content: center; background: rgba(8, 14, 20, .55); overflow-y: auto; padding: 24px 12px; }
+  #dlg[hidden] { display: none; }
+  #dlg .sheet { background: var(--surface); border-radius: 16px; width: 100%; max-width: 520px; padding: 20px; border: 1.5px solid var(--line); }
+  #dlg .sheet h2 { margin-bottom: 14px; }
+  .radios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 14px; }
+  .radios label { display: flex; align-items: center; gap: 8px; min-height: 44px; border: 1.5px solid var(--line); border-radius: 10px; padding: 4px 12px; font-weight: 500; }
+  .radios input { width: 20px; height: 20px; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 10px; font-weight: 600; z-index: 30; max-width: 90vw; }
+  #toast[hidden] { display: none; }
+
+  /* start screen */
+  .start { max-width: 640px; margin: 0 auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .mchip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1.5px solid var(--ink); border-radius: 999px; padding: 2px 4px 2px 4px; font-weight: 600; }
+  .mchip button { border: 0; background: transparent; min-width: 32px; min-height: 32px; font-weight: 700; border-radius: 50%; }
+  .addrow { display: flex; gap: 8px; }
+  .addrow input { margin-top: 0; }
+  .agree label { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; font-weight: 400; }
+  .agree input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
+  details.guide { margin-top: 20px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 10px 14px; }
+  details.guide summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+  details.guide ol { margin: 8px 0 0; padding-left: 22px; }
+  footer.foot { margin-top: 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 15px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div id="dlg" hidden></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- constants ---------- */
+  var PAL = ["#0b7476", "#5b3aa6", "#9a5a00", "#a82f5e", "#2f6b24", "#2352b0"];
+  var AGREE = [
+    "Every task has one named owner before work starts",
+    "Reply to project messages within one day",
+    "Post a blocker as soon as you have one",
+    "Write decisions in the decision log",
+    "Keep files in one shared folder, named with a date and a short description"
+  ];
+  var STATUS = { todo: "To do", doing: "In progress", blocked: "Blocked", done: "Done" };
+  var ORDER = ["todo", "doing", "blocked", "done"];
+  var VIEWS = ["home", "board", "decisions"];
+  var VIEW_LABEL = { home: "Home", board: "Board", decisions: "Decisions" };
+
+  /* ---------- state ---------- */
+  var S = {
+    view: "start", project: null, me: null, filter: "all", dialog: null,
+    start: null, dform: { what: "", why: "", by: "team", errors: {} }, dsearch: "",
+    lform: { label: "", url: "", open: false, errors: {} }, nudged: {}, lastFocus: null
+  };
+  var nextId = 100;
+  function resetStart() {
+    S.start = {
+      name: "CS5340 HCI final project", deadline: isoDays(24),
+      members: ["Alex", "Priya", "Sam", "Jordan"], input: "",
+      agreement: AGREE.map(function (t) { return { text: t, on: true }; }), errors: {}
+    };
+  }
+
+  /* ---------- helpers ---------- */
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function isoDays(n) { var d = new Date(Date.now() + n * 864e5); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function fmtDate(iso) { return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+  function daysLeft(iso) { return Math.ceil((new Date(iso + "T23:59:59") - new Date()) / 864e5); }
+  function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
+  function member(id) { return S.project.members.filter(function (m) { return m.id === id; })[0]; }
+  function task(id) { return S.project.tasks.filter(function (t) { return t.id === id; })[0]; }
+  function chip(m) { return '<span class="chip" style="background:' + m.color + '" aria-hidden="true">' + esc(m.name.charAt(0).toUpperCase()) + "</span>"; }
+  function who(m, big) { return '<span class="who' + (big ? " big" : "") + '">' + chip(m) + esc(m.name) + "</span>"; }
+  function dayTxt(n) { return n === 0 ? "today" : plural(n, "day"); }
+  function ago(n) { return n === 0 ? "today" : n === 1 ? "yesterday" : n + " days ago"; }
+  function isStalled(t) { return t.status === "doing" && t.updated >= 4; }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg; el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, 3200);
+  }
+
+  /* ---------- example data (so the prototype can be explored) ---------- */
+  function seed(ms) {
+    function o(i) { return ms[i % ms.length].id; }
+    var t = [
+      ["Write the interview guide", 1, "done", 12, null, "", -14],
+      ["Draft the problem statement", 0, "done", 9, null, "", -10],
+      ["Run four interviews", 2, "done", 6, null, "", -7],
+      ["Build the login page", 2, "doing", 1, null, "", 5],
+      ["Design the database schema", 3, "doing", 5, null, "", 6],
+      ["Connect the login page to the API", 2, "blocked", 2, 3, "Needs the API response format", 7],
+      ["Write the usability test script", 1, "todo", 0, null, "", 9],
+      ["Write the report introduction", 0, "doing", 1, null, "", 12],
+      ["Record the demo video", 0, "todo", 0, null, "", 20]
+    ];
+    return t.map(function (r, i) {
+      return { id: "t" + i, title: r[0], owner: o(r[1]), status: r[2], updated: r[3], waitingOn: r[4] == null ? null : o(r[4]), need: r[5], due: isoDays(r[6]) };
+    });
+  }
+  function seedDecisions(ms) {
+    return [
+      { id: "d0", what: "Use React for the front end", why: "Two of us already know it, so nobody needs to learn a new tool.", by: ms[0].id, ago: 8 },
+      { id: "d1", what: "Weekly sync on Tuesdays at 8 pm", why: "It is the only slot when all four of us are free.", by: "team", ago: 11 },
+      { id: "d2", what: "All files go in the shared folder, named with the date and a short description", why: "We lost time last project looking for the latest version.", by: "team", ago: 13 }
+    ];
+  }
+  function seedLinks() {
+    return [
+      { id: "l0", label: "Team chat", kind: "Chat" },
+      { id: "l1", label: "Shared folder", kind: "Files" },
+      { id: "l2", label: "Code repository", kind: "Code" }
+    ];
+  }
+
+  /* ---------- routing ---------- */
+  function go(view) {
+    S.view = view;
+    if (view !== "start" && location.hash !== "#" + view) { try { location.hash = view; } catch (e) { /* ignore */ } }
+    render();
+    var m = document.getElementById("main");
+    if (m) { m.focus({ preventScroll: true }); }
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", function () {
+    var h = location.hash.replace("#", "");
+    if (S.project && VIEWS.indexOf(h) > -1 && h !== S.view) { S.view = h; render(); }
+  });
+
+  /* ---------- render ---------- */
+  var app = document.getElementById("app");
+  function render() {
+    if (S.view === "start" || !S.project) { app.innerHTML = startHTML(); return; }
+    var inner = S.view === "home" ? homeHTML() : S.view === "board" ? boardHTML() : decisionsHTML();
+    app.innerHTML = headerHTML() + inner + footerHTML();
+    if (S.view === "decisions") renderDList();
+  }
+
+  function headerHTML() {
+    var p = S.project, dl = daysLeft(p.deadline);
+    var dlText = dl < 0 ? "Deadline passed" : dl === 0 ? "Due today" : plural(dl, "day") + " left";
+    var opts = p.members.map(function (m) { return '<option value="' + m.id + '"' + (m.id === S.me ? " selected" : "") + ">" + esc(m.name) + "</option>"; }).join("");
+    var tabs = VIEWS.map(function (v) {
+      return '<button type="button" data-act="nav" data-view="' + v + '"' + (S.view === v ? ' aria-current="page"' : "") + ">" + VIEW_LABEL[v] + "</button>";
+    }).join("");
+    var owned = p.tasks.every(function (t) { return t.owner; });
+    return '<header class="top"><div><h1>' + esc(p.name) + '</h1><div class="meta"><span class="pill">' + dlText + " · due " + fmtDate(p.deadline) +
+      '</span><span class="pill ok">' + (owned ? "Every task has an owner" : "Some tasks have no owner") + "</span></div></div>" +
+      '<div class="viewing"><label for="me">Viewing as</label><select id="me" data-act="me">' + opts + "</select></div></header>" +
+      '<nav class="tabs" aria-label="Project sections">' + tabs + "</nav>" + '<main id="main" tabindex="-1">';
+  }
+  function footerHTML() {
+    return "</main>" + '<footer class="foot"><span>Prototype v2. Example data only; nothing is saved or sent.</span><button type="button" class="btn small" data-act="startover">Start over</button></footer>';
+  }
+
+  /* --- start --- */
+  function startHTML() {
+    var st = S.start, e = st.errors || {};
+    var chips = st.members.map(function (n, i) {
+      return '<span class="mchip"><span class="chip" style="background:' + PAL[i % PAL.length] + '" aria-hidden="true">' + esc(n.charAt(0).toUpperCase()) + "</span>" + esc(n) +
+        '<button type="button" data-act="rmmember" data-i="' + i + '" aria-label="Remove ' + esc(n) + '">×</button></span>';
+    }).join("");
+    var agree = st.agreement.map(function (a, i) {
+      return '<label><input type="checkbox" data-act="agree" data-i="' + i + '"' + (a.on ? " checked" : "") + "><span>" + esc(a.text) + "</span></label>";
+    }).join("");
+    return '<div class="start"><header style="padding:8px 0 18px"><h1>Start a project in five minutes</h1>' +
+      '<p class="muted" style="margin-top:8px">Set up who is on the team, when it is due, and the ground rules. Your team keeps using its chat and files; this page ties them together.</p></header>' +
+      '<main id="main" tabindex="-1"><div class="panel">' +
+      '<label class="field">Project name<input type="text" data-bind="start.name" value="' + esc(st.name) + '"' + (e.name ? ' class="invalid" aria-invalid="true"' : "") + ">" + (e.name ? '<div class="err" role="alert">' + e.name + "</div>" : "") + "</label>" +
+      '<label class="field">Deadline<input type="date" data-bind="start.deadline" value="' + esc(st.deadline) + '"' + (e.deadline ? ' class="invalid" aria-invalid="true"' : "") + ">" + (e.deadline ? '<div class="err" role="alert">' + e.deadline + "</div>" : "") + "</label>" +
+      '<div class="field" style="font-weight:600">Team members<span class="hint" style="font-weight:400;color:var(--muted);font-size:15px;display:block">You are the first name on the list. Add everyone, including yourself.</span>' +
+      '<div class="chips">' + chips + "</div>" +
+      '<div class="addrow"><input type="text" id="memberInput" aria-label="Add a member" placeholder="Add a name" data-bind="start.input" value="' + esc(st.input) + '"><button type="button" class="btn" data-act="addmember">Add member</button></div>' +
+      (e.members ? '<div class="err" role="alert">' + e.members + "</div>" : "") + "</div>" +
+      '<fieldset class="agree" style="border:0;padding:0;margin:0 0 14px"><legend style="font-weight:600;margin-bottom:4px">Team agreement</legend><p class="muted small" style="margin-bottom:2px">Tick the rules your team will follow. They stay on the project page so nobody has to remember them.</p>' + agree + "</fieldset>" +
+      '<button type="button" class="btn primary" style="width:100%;min-height:52px;font-size:19px" data-act="create">Create project</button>' +
+      '<p class="muted small" style="margin:10px 0 0">Example tasks, decisions and links are added so you can explore the whole flow.</p></div>' +
+      '<details class="guide"><summary>Try the main flow</summary><ol>' +
+      "<li>Create the project, then read what needs attention on Home.</li>" +
+      "<li>Switch “Viewing as” to Jordan to see who is waiting on you.</li>" +
+      "<li>Open the Board and add a task. Try saving it without an owner.</li>" +
+      "<li>Mark a task as blocked and say who you are waiting on.</li>" +
+      "<li>Add a decision in the Decisions tab, then check Home again.</li></ol></details></main></div>";
+  }
+
+  /* --- home --- */
+  function homeHTML() {
+    var p = S.project, me = member(S.me), T = p.tasks;
+    var counts = { todo: 0, doing: 0, blocked: 0, done: 0 };
+    T.forEach(function (t) { counts[t.status]++; });
+    var blocked = T.filter(function (t) { return t.status === "blocked"; });
+    var stalled = T.filter(isStalled);
+    var waitingOnMe = blocked.filter(function (t) { return t.waitingOn === S.me; });
+    var mine = T.filter(function (t) { return t.owner === S.me && t.status !== "done"; });
+
+    var attention = "";
+    waitingOnMe.forEach(function (t) {
+      attention += '<div class="alert you"><strong>' + esc(member(t.owner).name) + " is waiting on you</strong><div>" + esc(t.title) + ". " + esc(t.need) + " (" + dayTxt(t.updated) + ").</div>" +
+        '<div class="actions"><button type="button" class="btn small" data-act="opentask" data-id="' + t.id + '">Open task</button></div></div>';
+    });
+    blocked.filter(function (t) { return t.waitingOn !== S.me; }).forEach(function (t) {
+      attention += '<div class="alert"><strong>' + esc(member(t.owner).name) + " is waiting on " + esc(member(t.waitingOn).name) + "</strong><div>" + esc(t.title) + ". " + esc(t.need) + " (" + dayTxt(t.updated) + ").</div>" +
+        '<div class="actions"><button type="button" class="btn small" data-act="opentask" data-id="' + t.id + '">Open task</button></div></div>';
+    });
+    stalled.forEach(function (t) {
+      var sent = S.nudged[t.id];
+      attention += '<div class="alert"><strong>No update for ' + plural(t.updated, "day") + "</strong><div>" + esc(t.title) + ", owned by " + esc(member(t.owner).name) + ".</div>" +
+        '<div class="actions"><button type="button" class="btn small" data-act="nudge" data-id="' + t.id + '"' + (sent ? " disabled" : "") + ">" + (sent ? "Update requested" : "Ask for an update") + "</button>" +
+        '<button type="button" class="btn small" data-act="opentask" data-id="' + t.id + '">Open task</button></div></div>';
+    });
+    if (!attention) attention = '<p class="calm">Nothing needs attention. Every task has an owner and nothing is blocked.</p>';
+
+    var yours = mine.length ? '<div class="rows">' + mine.map(function (t) {
+      return '<div class="row"><div class="grow"><button type="button" class="title" style="background:none;border:0;padding:0;font-weight:600;text-align:left;cursor:pointer" data-act="opentask" data-id="' + t.id + '">' + esc(t.title) + "</button>" +
+        '<div class="muted small">' + STATUS[t.status] + (t.due ? " · due " + fmtDate(t.due) : "") + "</div></div></div>";
+    }).join("") + "</div>" : '<p class="calm">You have no open tasks.</p>';
+
+    var bar = ["done", "doing", "blocked", "todo"].map(function (s) { return counts[s] ? '<span class="seg-' + s + '" style="width:' + (counts[s] / T.length * 100) + '%"></span>' : ""; }).join("");
+    var team = p.members.map(function (m) {
+      var open = T.filter(function (t) { return t.owner === m.id && t.status !== "done"; }).length;
+      var done = T.filter(function (t) { return t.owner === m.id && t.status === "done"; }).length;
+      var bl = T.filter(function (t) { return t.owner === m.id && t.status === "blocked"; }).length;
+      return '<div class="row"><div>' + who(m) + '</div><div class="muted small">' + open + " open, " + done + " done" + (bl ? ", " + bl + " blocked" : "") + "</div></div>";
+    }).join("");
+
+    var links = p.links.map(function (l) {
+      return '<div class="row"><button type="button" style="background:none;border:0;padding:0;font-weight:600;text-align:left;cursor:pointer;text-decoration:underline" data-act="link" data-id="' + l.id + '">' + esc(l.label) + '</button><span class="muted small">' + esc(l.kind) + "</span></div>";
+    }).join("");
+    var lf = S.lform;
+    var linkForm = lf.open ? '<div style="margin-top:10px"><label class="field">Name<input type="text" data-bind="lform.label" value="' + esc(lf.label) + '"></label>' +
+      '<label class="field">Where it lives<span class="hint">Paste the address of the chat, folder or repository.</span><input type="url" data-bind="lform.url" value="' + esc(lf.url) + '"></label>' +
+      (lf.errors.msg ? '<div class="err" role="alert">' + lf.errors.msg + "</div>" : "") +
+      '<div class="btns"><button type="button" class="btn small primary" data-act="addlink">Add link</button><button type="button" class="btn small" data-act="togglelink">Cancel</button></div></div>'
+      : '<button type="button" class="btn small" style="margin-top:8px" data-act="togglelink">Add a link</button>';
+
+    var latest = p.decisions.slice(0, 3).map(function (d) {
+      var by = d.by === "team" ? "The team" : member(d.by).name;
+      return '<div class="row"><div class="grow"><strong>' + esc(d.what) + '</strong><div class="muted small">' + esc(by) + ", " + ago(d.ago) + "</div></div></div>";
+    }).join("");
+
+    var agree = p.agreement.length ? "<ul style='margin:0;padding-left:20px'>" + p.agreement.map(function (a) { return "<li>" + esc(a) + "</li>"; }).join("") + "</ul>" : '<p class="calm">No rules were chosen.</p>';
+
+    return '<div class="grid2"><div>' +
+      '<section class="panel" aria-labelledby="h-att"><h2 id="h-att">Needs attention</h2>' + attention + "</section>" +
+      '<section class="panel" aria-labelledby="h-you"><h2 id="h-you">For ' + esc(me.name) + "</h2>" + yours + "</section>" +
+      '<section class="panel" aria-labelledby="h-prog"><h2 id="h-prog">Progress</h2><div class="bar" role="img" aria-label="' + counts.done + " of " + T.length + ' tasks done">' + bar + "</div>" +
+      '<div class="legend"><span>' + counts.done + " done</span><span>" + counts.doing + " in progress</span><span>" + counts.blocked + " blocked</span><span>" + counts.todo + " to do</span></div></section>" +
+      "</div><div>" +
+      '<section class="panel" aria-labelledby="h-links"><h2 id="h-links">Where things live</h2><div class="rows">' + links + "</div>" + linkForm + "</section>" +
+      '<section class="panel" aria-labelledby="h-dec"><h2 id="h-dec">Latest decisions</h2><div class="rows">' + latest + '</div><button type="button" class="btn small" style="margin-top:8px" data-act="nav" data-view="decisions">See all decisions</button></section>' +
+      '<section class="panel" aria-labelledby="h-team"><h2 id="h-team">Team</h2><div class="rows">' + team + "</div></section>" +
+      '<section class="panel" aria-labelledby="h-agree"><h2 id="h-agree">Team agreement</h2>' + agree + "</section>" +
+      "</div></div>";
+  }
+
+  /* --- board --- */
+  function cardHTML(t) {
+    var o = member(t.owner), stalled = isStalled(t), w = t.waitingOn ? member(t.waitingOn) : null;
+    var line = "";
+    if (t.due && t.status !== "done") line += "<span>Due " + fmtDate(t.due) + "</span>";
+    if (stalled) line += '<span class="badge">No update for ' + plural(t.updated, "day") + "</span>";
+    if (S.nudged[t.id]) line += "<span>Update requested</span>";
+    var blockedInfo = t.status === "blocked" && w ? '<div class="small" style="margin-top:6px"><strong>Waiting on ' + esc(w.name) + ":</strong> " + esc(t.need) + " (" + dayTxt(t.updated) + ")</div>" : "";
+    var qa = "";
+    if (t.status === "todo") qa = qbtn(t, "doing", "Start");
+    else if (t.status === "doing") qa = qbtn(t, "done", "Mark done") + qbtn(t, "blocked", "I’m blocked");
+    else if (t.status === "blocked") qa = qbtn(t, "doing", "Unblock");
+    else qa = qbtn(t, "doing", "Reopen");
+    return '<article class="card" style="border-left-color:' + o.color + '"><button type="button" class="title" data-act="opentask" data-id="' + t.id + '">' + esc(t.title) + "</button>" +
+      '<div class="line">' + who(o) + line + "</div>" + blockedInfo + '<div class="qa">' + qa + "</div></article>";
+  }
+  function qbtn(t, to, label) { return '<button type="button" class="btn small" data-act="quick" data-id="' + t.id + '" data-to="' + to + '" aria-label="' + label + ": " + esc(t.title) + '">' + label + "</button>"; }
+
+  function boardHTML() {
+    var T = S.project.tasks.filter(function (t) { return S.filter === "all" || t.owner === S.me; });
+    var cols = ORDER.map(function (s) {
+      var items = T.filter(function (t) { return t.status === s; });
+      var body = items.length ? items.map(cardHTML).join("") : '<div class="empty">' + (s === "blocked" ? "Nothing is blocked." : s === "done" ? "Nothing done yet." : "No tasks here.") + "</div>";
+      return '<section class="col ' + s + '" aria-label="' + STATUS[s] + '"><h3><span>' + STATUS[s] + "</span><span>" + items.length + "</span></h3>" + body + "</section>";
+    }).join("");
+    return '<div class="filters"><div class="group" role="group" aria-label="Show tasks">' +
+      '<button type="button" data-act="filter" data-f="all" aria-pressed="' + (S.filter === "all") + '">Everyone</button>' +
+      '<button type="button" data-act="filter" data-f="mine" aria-pressed="' + (S.filter === "mine") + '">Mine</button></div>' +
+      '<button type="button" class="btn primary" data-act="newtask">Add a task</button></div><div class="cols">' + cols + "</div>";
+  }
+
+  /* --- decisions --- */
+  function decisionsHTML() {
+    var f = S.dform, e = f.errors;
+    var opts = '<option value="team"' + (f.by === "team" ? " selected" : "") + ">The whole team</option>" + S.project.members.map(function (m) { return '<option value="' + m.id + '"' + (f.by === m.id ? " selected" : "") + ">" + esc(m.name) + "</option>"; }).join("");
+    return '<div class="grid2"><div><section class="panel" aria-labelledby="h-add"><h2 id="h-add">Write down a decision</h2>' +
+      '<label class="field">What did we decide?<input type="text" data-bind="dform.what" value="' + esc(f.what) + '"' + (e.what ? ' class="invalid" aria-invalid="true"' : "") + ">" + (e.what ? '<div class="err" role="alert">' + e.what + "</div>" : "") + "</label>" +
+      '<label class="field">Why? <span class="hint">Optional. One sentence helps later.</span><textarea data-bind="dform.why">' + esc(f.why) + "</textarea></label>" +
+      '<label class="field">Decided by<select class="f" data-bind="dform.by">' + opts + "</select></label>" +
+      '<button type="button" class="btn primary" data-act="adddecision">Save decision</button></section></div>' +
+      '<div><section class="panel" aria-labelledby="h-all"><h2 id="h-all">All decisions</h2>' +
+      '<label class="field" style="margin-bottom:8px"><span class="sr">Search decisions</span><input type="text" id="dsearch" placeholder="Search decisions" value="' + esc(S.dsearch) + '"></label>' +
+      '<div id="dlist" class="rows"></div></section></div></div>';
+  }
+  function renderDList() {
+    var box = document.getElementById("dlist");
+    if (!box) return;
+    var q = S.dsearch.trim().toLowerCase();
+    var items = S.project.decisions.filter(function (d) { return !q || (d.what + " " + d.why).toLowerCase().indexOf(q) > -1; });
+    box.innerHTML = items.length ? items.map(function (d) {
+      var by = d.by === "team" ? "The team" : member(d.by).name;
+      return '<div class="row"><div class="grow"><strong>' + esc(d.what) + "</strong>" + (d.why ? "<div>" + esc(d.why) + "</div>" : "") + '<div class="muted small">' + esc(by) + ", " + ago(d.ago) + "</div></div></div>";
+    }).join("") : '<p class="calm">' + (q ? "No decision matches “" + esc(S.dsearch) + "”." : "No decisions yet. Write the first one so nobody has to remember it.") + "</p>";
+  }
+
+  /* --- task dialog --- */
+  function openDialog(mode, id, forceStatus) {
+    S.lastFocus = document.activeElement;
+    var t = id ? task(id) : null;
+    S.dialog = {
+      mode: mode, id: id, errors: {},
+      draft: t ? { title: t.title, owner: t.owner, status: forceStatus || t.status, due: t.due || "", waitingOn: t.waitingOn || "", need: t.need || "" }
+               : { title: "", owner: "", status: "todo", due: "", waitingOn: "", need: "" }
+    };
+    renderDialog();
+  }
+  function closeDialog() {
+    S.dialog = null; renderDialog();
+    if (S.lastFocus && document.body.contains(S.lastFocus)) S.lastFocus.focus();
+  }
+  function renderDialog() {
+    var box = document.getElementById("dlg");
+    if (!S.dialog) { box.hidden = true; box.innerHTML = ""; return; }
+    var d = S.dialog.draft, e = S.dialog.errors, ms = S.project.members;
+    var ownerOpts = '<option value="">Choose an owner</option>' + ms.map(function (m) { return '<option value="' + m.id + '"' + (d.owner === m.id ? " selected" : "") + ">" + esc(m.name) + "</option>"; }).join("");
+    var waitOpts = '<option value="">Choose a person</option>' + ms.filter(function (m) { return m.id !== d.owner; }).map(function (m) { return '<option value="' + m.id + '"' + (d.waitingOn === m.id ? " selected" : "") + ">" + esc(m.name) + "</option>"; }).join("");
+    var radios = ORDER.map(function (s) { return '<label><input type="radio" name="status" value="' + s + '" data-bind="draft.status" data-rerender="1"' + (d.status === s ? " checked" : "") + ">" + STATUS[s] + "</label>"; }).join("");
+    var blockedFields = d.status === "blocked" ?
+      '<label class="field">Waiting on<select class="f' + (e.waitingOn ? " invalid" : "") + '" data-bind="draft.waitingOn">' + waitOpts + "</select>" + (e.waitingOn ? '<div class="err" role="alert">' + e.waitingOn + "</div>" : "") + "</label>" +
+      '<label class="field">What do you need from them?<input type="text" data-bind="draft.need" value="' + esc(d.need) + '"' + (e.need ? ' class="invalid" aria-invalid="true"' : "") + ">" + (e.need ? '<div class="err" role="alert">' + e.need + "</div>" : "") + "</label>" : "";
+    box.hidden = false;
+    box.innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dtitle"><h2 id="dtitle">' + (S.dialog.mode === "new" ? "Add a task" : "Edit task") + "</h2>" +
+      '<label class="field">Task<input type="text" id="dTitle" data-bind="draft.title" value="' + esc(d.title) + '"' + (e.title ? ' class="invalid" aria-invalid="true"' : "") + ">" + (e.title ? '<div class="err" role="alert">' + e.title + "</div>" : "") + "</label>" +
+      '<label class="field">Owner<span class="hint">Every task needs one person who is responsible.</span><select class="f' + (e.owner ? " invalid" : "") + '" id="dOwner" data-bind="draft.owner">' + ownerOpts + "</select>" + (e.owner ? '<div class="err" role="alert">' + e.owner + "</div>" : "") + "</label>" +
+      '<label class="field">Due date <span class="hint">Optional.</span><input type="date" data-bind="draft.due" value="' + esc(d.due) + '"></label>' +
+      '<fieldset style="border:0;padding:0;margin:0"><legend style="font-weight:600">Status</legend><div class="radios">' + radios + "</div></fieldset>" + blockedFields +
+      '<div class="btns"><button type="button" class="btn primary" data-act="savetask">' + (S.dialog.mode === "new" ? "Add task" : "Save task") + '</button><button type="button" class="btn" data-act="canceltask">Cancel</button></div></div>';
+    var f = box.querySelector(e.title ? "#dTitle" : e.owner ? "#dOwner" : "input,select");
+    if (f && !S.dialog.keepFocus) f.focus();
+  }
+  function saveTask() {
+    var D = S.dialog, d = D.draft, e = {};
+    if (!d.title.trim()) e.title = "Enter a task name.";
+    if (!d.owner) e.owner = "Pick an owner. Every task needs one.";
+    if (d.status === "blocked") {
+      if (!d.waitingOn) e.waitingOn = "Say who you are waiting on.";
+      if (!d.need.trim()) e.need = "Say what you need from them.";
+    }
+    if (Object.keys(e).length) { D.errors = e; renderDialog(); return; }
+    var blocked = d.status === "blocked";
+    if (D.mode === "new") {
+      S.project.tasks.push({ id: "t" + (nextId++), title: d.title.trim(), owner: d.owner, status: d.status, updated: 0, waitingOn: blocked ? d.waitingOn : null, need: blocked ? d.need.trim() : "", due: d.due });
+      toast("Task added to " + member(d.owner).name);
+    } else {
+      var t = task(D.id), changed = t.status !== d.status || t.owner !== d.owner;
+      t.title = d.title.trim(); t.owner = d.owner; t.due = d.due;
+      if (changed || blocked) t.updated = 0;
+      t.status = d.status; t.waitingOn = blocked ? d.waitingOn : null; t.need = blocked ? d.need.trim() : "";
+      toast("Task saved");
+    }
+    closeDialog(); render();
+  }
+
+  /* ---------- events ---------- */
+  function setBound(el) {
+    var path = el.getAttribute("data-bind").split("."), v = el.value;
+    if (path[0] === "start") S.start[path[1]] = v;
+    else if (path[0] === "dform") S.dform[path[1]] = v;
+    else if (path[0] === "lform") S.lform[path[1]] = v;
+    else if (path[0] === "draft" && S.dialog) S.dialog.draft[path[1]] = v;
+  }
+  document.addEventListener("input", function (ev) {
+    var el = ev.target;
+    if (el.id === "dsearch") { S.dsearch = el.value; renderDList(); return; }
+    if (el.getAttribute && el.getAttribute("data-bind") && el.type !== "radio") setBound(el);
+  });
+  document.addEventListener("change", function (ev) {
+    var el = ev.target;
+    if (el.getAttribute("data-bind")) {
+      setBound(el);
+      if (el.getAttribute("data-rerender")) { if (S.dialog) { S.dialog.errors = {}; S.dialog.keepFocus = true; renderDialog(); S.dialog.keepFocus = false; var r = document.querySelector('#dlg input[name="status"]:checked'); if (r) r.focus(); } }
+    }
+    var act = el.getAttribute("data-act");
+    if (act === "me") { S.me = el.value; render(); var m = document.getElementById("me"); if (m) m.focus(); }
+    if (act === "agree") { S.start.agreement[+el.getAttribute("data-i")].on = el.checked; }
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && S.dialog) { ev.preventDefault(); closeDialog(); }
+    if (ev.key === "Enter" && ev.target.id === "memberInput") { ev.preventDefault(); addMember(); }
+  });
+
+  function addMember() {
+    var n = (S.start.input || "").trim();
+    if (!n) return;
+    if (S.start.members.some(function (m) { return m.toLowerCase() === n.toLowerCase(); })) { S.start.errors = { members: n + " is already on the team." }; render(); return; }
+    S.start.members.push(n); S.start.input = ""; S.start.errors = {}; render();
+    var i = document.getElementById("memberInput"); if (i) i.focus();
+  }
+  function createProject() {
+    var st = S.start, e = {};
+    if (!st.name.trim()) e.name = "Enter a project name.";
+    if (!st.deadline) e.deadline = "Choose the deadline.";
+    else if (daysLeft(st.deadline) < 0) e.deadline = "Choose a date in the future.";
+    if (st.members.length < 2) e.members = "Add at least two members.";
+    st.errors = e;
+    if (Object.keys(e).length) { render(); var bad = document.querySelector("[aria-invalid], .err"); if (bad && bad.scrollIntoView) bad.scrollIntoView({ block: "center" }); return; }
+    var ms = st.members.map(function (n, i) { return { id: "m" + i, name: n, color: PAL[i % PAL.length] }; });
+    S.project = { name: st.name.trim(), deadline: st.deadline, members: ms, tasks: seed(ms), decisions: seedDecisions(ms), links: seedLinks(),
+      agreement: st.agreement.filter(function (a) { return a.on; }).map(function (a) { return a.text; }) };
+    S.me = ms[0].id; S.filter = "all"; S.nudged = {};
+    go("home"); toast("Project created. Example tasks were added.");
+  }
+
+  app.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-act]");
+    if (!b || b.tagName === "SELECT" || b.tagName === "INPUT") return;
+    var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    if (act === "nav") go(b.getAttribute("data-view"));
+    else if (act === "addmember") addMember();
+    else if (act === "rmmember") { S.start.members.splice(+b.getAttribute("data-i"), 1); S.start.errors = {}; render(); }
+    else if (act === "create") createProject();
+    else if (act === "startover") { S.project = null; S.dialog = null; resetStart(); S.dform = { what: "", why: "", by: "team", errors: {} }; S.dsearch = ""; S.lform = { label: "", url: "", open: false, errors: {} }; go("start"); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
+    else if (act === "filter") { S.filter = b.getAttribute("data-f"); render(); var nb = document.querySelector('[data-f="' + S.filter + '"]'); if (nb) nb.focus(); }
+    else if (act === "newtask") openDialog("new");
+    else if (act === "opentask") openDialog("edit", id);
+    else if (act === "quick") {
+      var to = b.getAttribute("data-to");
+      if (to === "blocked") { openDialog("edit", id, "blocked"); return; }
+      var t = task(id); t.status = to; t.updated = 0; t.waitingOn = null; t.need = "";
+      toast(to === "done" ? "Marked done" : to === "doing" && b.textContent === "Unblock" ? "Unblocked" : "Moved to " + STATUS[to]);
+      render();
+    }
+    else if (act === "nudge") { var n = task(id); S.nudged[id] = true; toast("Reminder sent to " + member(n.owner).name + " (prototype)"); render(); }
+    else if (act === "link") toast("This would open the team’s " + S.project.links.filter(function (l) { return l.id === id; })[0].label.toLowerCase() + " (placeholder in the prototype)");
+    else if (act === "togglelink") { S.lform.open = !S.lform.open; S.lform.errors = {}; render(); }
+    else if (act === "addlink") {
+      var lf = S.lform;
+      if (!lf.label.trim() || !lf.url.trim()) { lf.errors = { msg: "Enter a name and an address." }; render(); return; }
+      S.project.links.push({ id: "l" + (nextId++), label: lf.label.trim(), kind: "Link" });
+      S.lform = { label: "", url: "", open: false, errors: {} }; toast("Link added"); render();
+    }
+    else if (act === "adddecision") {
+      var f = S.dform;
+      if (!f.what.trim()) { f.errors = { what: "Write what was decided." }; render(); return; }
+      S.project.decisions.unshift({ id: "d" + (nextId++), what: f.what.trim(), why: f.why.trim(), by: f.by, ago: 0 });
+      S.dform = { what: "", why: "", by: "team", errors: {} }; toast("Decision saved"); render();
+    }
+  });
+  document.getElementById("dlg").addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-act]");
+    if (ev.target.id === "dlg") { closeDialog(); return; }
+    if (!b) return;
+    var act = b.getAttribute("data-act");
+    if (act === "savetask") saveTask();
+    else if (act === "canceltask") closeDialog();
+  });
+
+  resetStart();
+  render();
+})();
+</script>
+</body>
+</html>
